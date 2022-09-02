@@ -1,7 +1,7 @@
-#include "token.h"
-#include "c_type.h"
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
+#include "token.h"
 
 
 char *functions[FUNCTIONS_SIZE] = {
@@ -123,15 +123,16 @@ token **tokenize_expression(tokenizer *_tokenizer) {
   for (; _tokenizer->curr_pos < _tokenizer->expr_size;) {
     char symbol = get_curr_symbol(_tokenizer);
     token *next_token = NULL;
-    if (is_digit(symbol)) {
+    if (isdigit(symbol)) {
       next_token = next_number_token(_tokenizer);
-    } else if (is_alpha(symbol)) {
+    } else if (isalpha(symbol)) {
       next_token = next_word_token(_tokenizer);
+    } else if (isspace(symbol)) {
+      _tokenizer->curr_pos++;
+      continue;
     } else {
       token_kind_e kind = get_operator_kind(symbol);
-
-      if (!_tokenizer->prev || (_tokenizer->prev->kind != TOKEN_NUMBER &&
-          _tokenizer->prev->kind != TOKEN_FUNCTION_NAME)) {
+      if (curr_symbol_is_unary_operator(_tokenizer)) {
         if (symbol == '-') {
           kind = TOKEN_UN_MINUS;
         } else if (symbol == '+') {
@@ -160,12 +161,23 @@ char get_curr_symbol(tokenizer *_tokenizer) {
   return next;
 }
 
+int curr_symbol_is_unary_operator(tokenizer *_tokenizer) {
+  // +10
+  // 10 - +10
+  // () + 10
+  int result = 1;
+  if (_tokenizer->prev)
+    result = (_tokenizer->prev->kind != TOKEN_NUMBER && _tokenizer->prev->kind != TOKEN_FUNCTION_NAME &&
+              _tokenizer->prev->kind != TOKEN_OPEN_BRACKET && _tokenizer->prev->kind != TOKEN_CLOSE_BRACKET);
+  return result;
+}
+
 token *next_word_token(tokenizer *_tokenizer) {
   token *word = NULL;
   char str_word[LEXEME_MAX_LEN];
   int idx = 0;
   char curr_symbol;
-  while ((curr_symbol = get_curr_symbol(_tokenizer)) != '\0' && is_alpha(curr_symbol)) {
+  while ((curr_symbol = get_curr_symbol(_tokenizer)) != '\0' && isalpha(curr_symbol)) {
     str_word[idx] = curr_symbol;
     idx++;
     _tokenizer->curr_pos++;
@@ -183,7 +195,7 @@ token *next_number_token(tokenizer *_tokenizer) {
   char str_number[LEXEME_MAX_LEN];
   int idx = 0;
   char curr_symbol;
-  while ((curr_symbol = get_curr_symbol(_tokenizer)) != '\0' && is_digit(curr_symbol)) {
+  while ((curr_symbol = get_curr_symbol(_tokenizer)) != '\0' && isdigit(curr_symbol)) {
     str_number[idx] = curr_symbol;
     idx++;
     _tokenizer->curr_pos++;
@@ -192,13 +204,13 @@ token *next_number_token(tokenizer *_tokenizer) {
   if (get_curr_symbol(_tokenizer) == '.') {
     str_number[idx] = get_curr_symbol(_tokenizer);
     _tokenizer->curr_pos++;
-    while ((curr_symbol = get_curr_symbol(_tokenizer)) != '\0' && is_digit(curr_symbol)) {
+    while ((curr_symbol = get_curr_symbol(_tokenizer)) != '\0' && isdigit(curr_symbol)) {
       str_number[idx] = curr_symbol;
       idx++;
       _tokenizer->curr_pos++;
     }
   }
-  str_number[++idx] = '\0';
+  str_number[idx] = '\0';
   number = new_token(str_number, TOKEN_NUMBER);
   return number;
 }

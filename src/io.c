@@ -1,5 +1,4 @@
 #include "io.h"
-#include "c_type.h"
 #include "graph.h"
 #include "token.h"
 #include "parse.h"
@@ -51,10 +50,8 @@ char *read_expression(int *expr_size) {
         input = tmp;
       }
     }
-    if (!is_space(ch)) {
-      input[idx] = ch;
-      idx++;
-    }
+    input[idx] = ch;
+    idx++;
   }
   input[idx] = '\0';
   *expr_size = idx;

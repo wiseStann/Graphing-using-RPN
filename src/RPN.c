@@ -6,6 +6,7 @@
 
 
 token **convert_to_RPN(const token **tokens, int tokens_size, int *result_tokens_size) {
+    printf("DEBUG [covert_to_RPN]\n");
     token **output = (token**)malloc(tokens_size * sizeof(struct Token));
     int idx = 0;
     op_stack *stack = new_op_stack();
@@ -46,6 +47,7 @@ token **convert_to_RPN(const token **tokens, int tokens_size, int *result_tokens
 }
 
 void convert_to_RPN_operator(token **output, token *curr, op_stack *stack, int *idx) {
+    printf("DEBUG [covert_to_RPN_operator]\n");
     if (curr->kind == TOKEN_OPEN_BRACKET) {
         op_stack_push(stack, curr);
     } else if (curr->kind == TOKEN_CLOSE_BRACKET) {
@@ -69,6 +71,7 @@ void convert_to_RPN_operator(token **output, token *curr, op_stack *stack, int *
 }
 
 double evaluate_RPN(token **tokens, int tokens_size, double x, int *flag) {
+    printf("DEBUG [evaluate_RPN]\n");
     op_stack *stack = new_op_stack();
     for (int i = 0; i < tokens_size && *flag; i++) {
         token *current = tokens[i];
@@ -94,6 +97,7 @@ double evaluate_RPN(token **tokens, int tokens_size, double x, int *flag) {
 }
 
 void evaluate_RPN_function(token *current, double x) {
+    printf("DEBUG [evaluate_RPN_function]\n");
     switch (current->func_id) {
         case 1:
             current->number = sin(x);
@@ -117,27 +121,31 @@ void evaluate_RPN_function(token *current, double x) {
 }
 
 void evaluate_RPN_operator(token *current, op_stack *stack, int *flag) {
+    printf("DEBUG [evaluate_RPN_operator]\n");
     double result = 0;
-    double operand2 = op_stack_pop(stack)->number;
-    double operand1 = op_stack_pop(stack)->number;
+    token *operand2 = op_stack_pop(stack);
+    token *operand1 = op_stack_pop(stack);
     switch (current->kind) {
         case TOKEN_BIN_PLUS:
-            result = operand1 + operand2;
+            result = operand1->number + operand2->number;
+            break;
+        case TOKEN_UN_MINUS:
+            result = -operand2->number;
             break;
         case TOKEN_BIN_MINUS:
-            result = operand1 - operand2;
+            result = operand1->number - operand2->number;
             break;
         case TOKEN_RSLASH: {
-            if (fabs(operand2) < EPS) {
+            if (fabs((double)operand2->number) < EPS) {
                 fprintf(stderr, "Division by zero, exited\n");
                 *flag = 0;
             } else {
-                result = operand1 / operand2;
+                result = operand1->number / operand2->number;
             }
             break;
         }
         case TOKEN_STAR:
-            result = operand1 * operand2;
+            result = operand1->number * operand2->number;
             break;
         default:
             break;

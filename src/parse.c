@@ -23,8 +23,11 @@ int is_valid_operator(int operator) {
 }
 
 int expect_token(parser *_parser, token_kind_e expected) {
-    token *curr = _parser->tokens[_parser->curr_pos];
-    return curr->kind == expected;
+    token *curr = get_curr_token(_parser);
+    int result = 0;
+    if (curr != NULL)
+        result = curr->kind == expected;
+    return result;
 }
 
 token *get_curr_token(parser *_parser) {
@@ -72,6 +75,7 @@ void parse_parent_expression(parser *_parser) {
     op_stack_push(_parser->brackets, bracket);
     eat_token(_parser);  // skip open bracket
     token *current = NULL;
+
     while ((current = get_curr_token(_parser)) != NULL && current->kind != TOKEN_CLOSE_BRACKET) {
         parse_single_expression(_parser);
         if (!_parser->state)
@@ -85,6 +89,8 @@ void parse_parent_expression(parser *_parser) {
         if (op_stack_pop(_parser->brackets) == NULL) {
             _THROW_ERROR("Can't find matching open bracket for ')'\n");
             _parser->state = 0;
+        } else {
+            op_stack_pop(_parser->brackets);  // pop open bracket from stack
         }
     }
 }
@@ -128,9 +134,13 @@ void parse_function(parser *_parser) {
                 _parser->state = 0;
             } else {
                 eat_token(_parser);  // skip close bracket
+
                 if (op_stack_pop(_parser->brackets) == NULL) {
                     _THROW_ERROR("Can't find matching open bracket for ')'\n");
-                }
+                    _parser->state = 0;
+                } else {
+                    op_stack_pop(_parser->brackets);  // pop open function bracket from stack
+                }    
             }
         }
     }

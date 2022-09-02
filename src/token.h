@@ -63,6 +63,8 @@ token **tokenize_expression(tokenizer *_tokenizer);
 
 char get_curr_symbol(tokenizer *_tokenizer);
 
+int curr_symbol_is_unary_operator(tokenizer *_tokenizer);
+
 token *next_word_token(tokenizer *_tokenizer);
 
 token *next_number_token(tokenizer *_tokenizer);

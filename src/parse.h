@@ -7,10 +7,8 @@
 
 #define ERR_MESSAGE_MAX_LEN 128
 
-#define _THROW_ERROR(fmt, ...) {              \
-    char err_message[ERR_MESSAGE_MAX_LEN];    \
-    sprintf(err_message, fmt, ##__VA_ARGS__); \
-    fprintf(stderr, err_message);             \
+#define _THROW_ERROR(fmt, ...) {         \
+    fprintf(stderr, fmt, ##__VA_ARGS__); \
 }
 
 // Parser structure
