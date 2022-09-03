@@ -1,14 +1,23 @@
 #ifndef SRC_PARSE_H_
 #define SRC_PARSE_H_
 
+#include "io.h"
 #include "op_stack.h"
 #include "token.h"
 
 
 #define ERR_MESSAGE_MAX_LEN 128
 
-#define _THROW_ERROR(fmt, ...) {         \
-    fprintf(stderr, fmt, ##__VA_ARGS__); \
+#define _ERROR_POINTER_PRELUDE(idx) {                     \
+    for (size_t i = 0; i < strlen(INPUT_PREF) + idx; ++i) \
+        printf(" ");                                      \
+    printf("\x1B[31m ^--\n");                             \
+}
+
+#define _THROW_ERROR(tok_pos, fmt, ...) { \
+    _ERROR_POINTER_PRELUDE(tok_pos);      \
+    fprintf(stderr, "Error:\x1B[0m ");    \
+    fprintf(stderr, fmt, ##__VA_ARGS__);  \
 }
 
 // Parser structure
@@ -28,6 +37,8 @@ int is_valid_operator(int operator);
 int expect_token(parser *_parser, token_kind_e expected);
 
 token *get_curr_token(parser *_parser);
+
+int get_text_length(parser* _parser);
 
 void eat_token(parser *_parser);
 

@@ -15,7 +15,8 @@
 #define EXPRESSION_EXP_VAL 16
 
 typedef struct Point {
-    int x, y;
+    int x;
+    double y;
 } point;
 
 void generate_graph(point *points, token **RPN_tokens, int tokens_size, int *flag);

@@ -82,7 +82,7 @@ int get_function_id(char str_token[LEXEME_MAX_LEN]) {
   return id + 1;
 }
 
-token *new_token(char str_token[LEXEME_MAX_LEN], token_kind_e kind) {
+token *new_token(char str_token[LEXEME_MAX_LEN], int text_pos, token_kind_e kind) {
   token *_token = NULL;
   if (str_token == NULL) {
     fprintf(stderr, "Token of kind id '%d' is NULL, aborted\n", kind);
@@ -106,6 +106,7 @@ token *new_token(char str_token[LEXEME_MAX_LEN], token_kind_e kind) {
     _token->kind = kind;
   }
   strcpy(_token->str_token, str_token);
+  _token->text_pos = text_pos;
   return _token;
 }
 
@@ -140,7 +141,7 @@ token **tokenize_expression(tokenizer *_tokenizer) {
         }
       }
       char str_symbol[LEXEME_MAX_LEN] = {symbol};
-      next_token = new_token(str_symbol, kind);
+      next_token = new_token(str_symbol, _tokenizer->curr_pos, kind);
       _tokenizer->curr_pos++;
     }
     tokens[token_idx] = next_token;
@@ -175,7 +176,7 @@ int curr_symbol_is_unary_operator(tokenizer *_tokenizer) {
 token *next_word_token(tokenizer *_tokenizer) {
   token *word = NULL;
   char str_word[LEXEME_MAX_LEN];
-  int idx = 0;
+  int idx = 0, start_pos = _tokenizer->curr_pos;
   char curr_symbol;
   while ((curr_symbol = get_curr_symbol(_tokenizer)) != '\0' && isalpha(curr_symbol)) {
     str_word[idx] = curr_symbol;
@@ -184,16 +185,16 @@ token *next_word_token(tokenizer *_tokenizer) {
   }
   str_word[idx] = '\0';
   if (strcmp(str_word, "x") == 0)
-    word = new_token(str_word, TOKEN_VARIABLE_NAME);
+    word = new_token(str_word, start_pos, TOKEN_VARIABLE_NAME);
   else
-    word = new_token(str_word, TOKEN_FUNCTION_NAME);
+    word = new_token(str_word, start_pos, TOKEN_FUNCTION_NAME);
   return word;
 }
 
 token *next_number_token(tokenizer *_tokenizer) {
   token *number = NULL;
   char str_number[LEXEME_MAX_LEN];
-  int idx = 0;
+  int idx = 0, start_pos = _tokenizer->curr_pos;
   char curr_symbol;
   while ((curr_symbol = get_curr_symbol(_tokenizer)) != '\0' && isdigit(curr_symbol)) {
     str_number[idx] = curr_symbol;
@@ -211,6 +212,6 @@ token *next_number_token(tokenizer *_tokenizer) {
     }
   }
   str_number[idx] = '\0';
-  number = new_token(str_number, TOKEN_NUMBER);
+  number = new_token(str_number, start_pos, TOKEN_NUMBER);
   return number;
 }

@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include "graph.h"
 
+#define INPUT_PREF "[expression]:"
+
 void start_plotting();
 
 char *read_expression(int *expr_size);

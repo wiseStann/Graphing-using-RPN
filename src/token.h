@@ -42,6 +42,7 @@ typedef struct Token {
     };
     char str_token[LEXEME_MAX_LEN];
     int func_id;
+    int text_pos;
     token_kind_e kind;
 } token;
 
@@ -55,7 +56,7 @@ typedef struct Tokenizer {
 
 tokenizer *new_tokenizer(char *expression, int expression_size);
 
-token *new_token(char *str_token, token_kind_e type);
+token *new_token(char *str_token, int text_pos, token_kind_e type);
 
 token **tokenize_input(char *expression, int expr_size, int *tokens_size);
 

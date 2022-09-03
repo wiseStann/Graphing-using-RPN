@@ -37,6 +37,11 @@ token *get_curr_token(parser *_parser) {
     return curr;
 }
 
+int get_text_length(parser* _parser) {
+    token *last_token = _parser->tokens[_parser->tokens_size - 1];
+    return last_token->text_pos + strlen(last_token->str_token);
+}
+
 void eat_token(parser *_parser) {
     _parser->curr_pos++;
 }
@@ -82,12 +87,12 @@ void parse_parent_expression(parser *_parser) {
             return;
     }
     if (current == NULL) {
-        _THROW_ERROR("Expected close bracket at the end of parenth expression\n");
+        _THROW_ERROR(get_text_length(_parser), "Expected close bracket at the end of parenth expression\n");
         _parser->state = 0;
     } else {
         eat_token(_parser);  // skip close bracket
         if (op_stack_pop(_parser->brackets) == NULL) {
-            _THROW_ERROR("Can't find matching open bracket for ')'\n");
+            _THROW_ERROR(current->text_pos, "Can't find matching open bracket for ')'\n");
             _parser->state = 0;
         } else {
             op_stack_pop(_parser->brackets);  // pop open bracket from stack
@@ -98,12 +103,15 @@ void parse_parent_expression(parser *_parser) {
 void parse_operator(parser *_parser) {
     token *current = get_curr_token(_parser);
     if (!is_valid_operator(current->operator.text)) {
-        _THROW_ERROR("Invalid operator token '%c'\n", current->operator.text);
+        _THROW_ERROR(current->text_pos, "Invalid operator token '%c'\n", current->operator.text);
         _parser->state = 0;
     } else if (current->kind == TOKEN_UN_PLUS) {
-        _THROW_ERROR("Unary plus operator is not allowed\n");
+        _THROW_ERROR(current->text_pos, "Unary plus operator is not allowed\n");
         _parser->state = 0;
-    } else if (current->kind != TOKEN_OPEN_BRACKET && current->kind != TOKEN_CLOSE_BRACKET) {
+    } else if (current->kind == TOKEN_OPEN_BRACKET || current->kind == TOKEN_CLOSE_BRACKET) {
+        _THROW_ERROR(current->text_pos, "Incorrect place for bracket\n");
+        _parser->state = 0;
+    } else {
         eat_token(_parser);  // skip operator token
     }
 }
@@ -111,7 +119,7 @@ void parse_operator(parser *_parser) {
 void parse_function(parser *_parser) {
     token *current = get_curr_token(_parser);
     if (current->func_id == 0 && strcmp(current->str_token, "x") != 0) {
-        _THROW_ERROR("Invalid variable or function name '%s'\n", current->str_token);
+        _THROW_ERROR(current->text_pos, "Invalid variable or function name '%s'\n", current->str_token);
         _parser->state = 0;
     } else if (strcmp(current->str_token, "x") == 0) {
         eat_token(_parser);  // skip x
@@ -119,7 +127,12 @@ void parse_function(parser *_parser) {
         eat_token(_parser);  // skip function name
         token *bracket = get_curr_token(_parser);
         if (!expect_token(_parser, TOKEN_OPEN_BRACKET)) {
-            _THROW_ERROR("Expected '(' token after function name\n");
+            int text_position;
+            if (bracket == NULL)
+                text_position = get_text_length(_parser);
+            else
+                text_position = bracket->text_pos;
+            _THROW_ERROR(text_position, "Expected '(' token after function name\n");
             _parser->state = 0;
         } else {
             eat_token(_parser);  // skip open bracket
@@ -130,13 +143,13 @@ void parse_function(parser *_parser) {
                     return;
             }
             if (current == NULL) {
-                _THROW_ERROR("Expected ')' token after function argument\n");
+                _THROW_ERROR(get_text_length(_parser), "Expected ')' token after function argument\n");
                 _parser->state = 0;
             } else {
                 eat_token(_parser);  // skip close bracket
 
                 if (op_stack_pop(_parser->brackets) == NULL) {
-                    _THROW_ERROR("Can't find matching open bracket for ')'\n");
+                    _THROW_ERROR(bracket->text_pos, "Can't find matching open bracket for ')'\n");
                     _parser->state = 0;
                 } else {
                     op_stack_pop(_parser->brackets);  // pop open function bracket from stack
