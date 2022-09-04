@@ -60,6 +60,7 @@ char *read_expression(int *expr_size) {
 }
 
 void print_field(int field[FIELD_HEIGHT][FIELD_WIDTH]) {
+  printf("\n");
   for (int i = -1; i < GAME_HEIGHT - 1; i++) {
     for (int j = -1; j < GAME_WIDTH - 1; j++) {
       if ((i > -1 || i < GAME_HEIGHT - 1) && (j == -1 || j == GAME_WIDTH - 2)) {

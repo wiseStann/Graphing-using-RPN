@@ -208,7 +208,7 @@ token *next_number_token(tokenizer *_tokenizer) {
   }
   // if float point number is given
   if (get_curr_symbol(_tokenizer) == '.') {
-    str_number[idx] = get_curr_symbol(_tokenizer);
+    str_number[idx++] = get_curr_symbol(_tokenizer);
     _tokenizer->curr_pos++;
     while ((curr_symbol = get_curr_symbol(_tokenizer)) != '\0' &&
            isdigit(curr_symbol)) {

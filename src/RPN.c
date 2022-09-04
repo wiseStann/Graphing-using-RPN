@@ -20,7 +20,6 @@ token **convert_to_RPN(const token **tokens, int tokens_size,
       while ((next = ((token **)tokens)[i])->kind != TOKEN_CLOSE_BRACKET) {
         i++;
       }
-      // i++;  // skip close bracket
       token *function_token =
           new_token(curr->str_token, curr->text_pos, TOKEN_FUNCTION_NAME);
       output[idx++] = function_token;
@@ -56,8 +55,9 @@ void convert_to_RPN_operator(token **output, token *curr, op_stack *stack,
     int precedence = curr->operator.precedence;
     token *tmp_tail = stack_get_tail(stack);
     if (tmp_tail && tmp_tail->kind != TOKEN_OPEN_BRACKET && stack->size > 0) {
-      if (tmp_tail->kind == TOKEN_UN_MINUS ||
-          precedence <= tmp_tail->operator.precedence) {
+      if ((tmp_tail->kind == TOKEN_UN_MINUS || precedence <= tmp_tail->operator.precedence) &&
+          (tmp_tail->kind != TOKEN_BIN_MINUS || tmp_tail->kind != TOKEN_BIN_MINUS) &&
+          curr->kind != TOKEN_UN_MINUS) {
         op_node *tail = op_stack_pop(stack); // pop stack
         output[*idx] =
             new_token(tail->operator->str_token, tail->operator->text_pos,
@@ -122,10 +122,17 @@ void evaluate_RPN_function(token *current, double x) {
 
 void evaluate_RPN_operator(token *current, op_stack *stack, int *flag) {
   double result = 0;
-  op_node *operand2_node = op_stack_pop(stack);
-  op_node *operand1_node = op_stack_pop(stack);
+  op_node *operand2_node = NULL, *operand1_node = NULL;
+  if (current->kind == TOKEN_UN_MINUS) {
+    operand2_node = op_stack_pop(stack);
+  } else {
+    operand2_node = op_stack_pop(stack);
+    operand1_node = op_stack_pop(stack);
+  }
+  // operand2_node is always non-NULL
   token *operand2 = operand2_node->operator;
-  token *operand1 = operand1_node->operator;
+  token *operand1 = (operand1_node) ? operand1_node->operator : NULL;
+
   free(operand2_node);
   free(operand1_node);
   switch (current->kind) {
@@ -154,10 +161,6 @@ void evaluate_RPN_operator(token *current, op_stack *stack, int *flag) {
     break;
   }
   if (*flag) {
-    // char str_double[64];
-    // sprintf(str_double, "%lf", result);
-    // token *result_token = new_token(str_double, current->text_pos,
-    // TOKEN_NUMBER);
     current->number = result;
     op_stack_push(stack, current);
   }
