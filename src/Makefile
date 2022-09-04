@@ -1,5 +1,5 @@
 CFLAGS = -Wall -Werror -Wextra
-TARGET = graph
+TARGET = ../build/graph
 
 all: graph
 
@@ -9,4 +9,4 @@ graph: graph.c token.c op_stack.c io.c parse.c RPN.c
 rebuild: clean all
 
 clean:
-	rm *.o
+	rm -rf ../build/*
