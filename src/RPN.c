@@ -4,25 +4,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-token **convert_to_RPN(const token **tokens, int tokens_size,
+token **convert_to_RPN(token **tokens, int tokens_size,
                        int *result_tokens_size) {
   token **output = (token **)malloc(tokens_size * sizeof(struct Token));
   int idx = 0;
   op_stack *stack = new_op_stack();
   for (int i = 0; i < tokens_size; i++) {
-    token *curr = ((token **)tokens)[i];
+    token *curr = tokens[i];
     if (curr->kind == TOKEN_NUMBER || curr->kind == TOKEN_VARIABLE_NAME) {
       output[idx++] = new_token(curr->str_token, curr->text_pos, curr->kind);
     } else if (curr->kind == TOKEN_FUNCTION_NAME && curr->str_token) {
-      // function -> sin(x), 'sin', '(', 'x', ')'
-      i += 2; // skip function name and bracket
-      token *next;
-      while ((next = ((token **)tokens)[i])->kind != TOKEN_CLOSE_BRACKET) {
-        i++;
-      }
-      token *function_token =
-          new_token(curr->str_token, curr->text_pos, TOKEN_FUNCTION_NAME);
-      output[idx++] = function_token;
+      convert_to_RPN_function(output, tokens, &i, &idx);
     } else {
       convert_to_RPN_operator(output, curr, stack, &idx);
     }
@@ -36,6 +28,48 @@ token **convert_to_RPN(const token **tokens, int tokens_size,
   op_stack_free(stack);
   *result_tokens_size = idx;
   return output;
+}
+
+void convert_to_RPN_function(token **output, token **tokens, int *i, int *idx) {
+  // if we have function like sin(cos(x + 1) - tan(x*x)), we must place all the
+  // tokens to the output in that given order Example: function -> sin(x),
+  // output: 'sin', '(', 'x', ')'
+
+  // sin(cos(x + 1) - tan(x * x)) -> sin ( cos ( x 1 + ) tan ( x x * ) - )
+
+  op_stack *stack = new_op_stack();
+
+  // skip function name
+  token *curr = tokens[*i];
+  token *function =
+      new_token(curr->str_token, curr->text_pos, TOKEN_FUNCTION_NAME);
+  output[(*idx)++] = function;
+  (*i)++;
+
+  op_stack *brackets = new_op_stack();
+  do {
+    curr = tokens[*i];
+    token *next_token = new_token(curr->str_token, curr->text_pos, curr->kind);
+    if (curr->kind == TOKEN_OPEN_BRACKET) {
+      op_stack_push(brackets, curr);
+      output[(*idx)++] = next_token;
+      convert_to_RPN_operator(output, curr, stack, idx);
+    } else if (curr->kind == TOKEN_CLOSE_BRACKET) {
+      op_stack_pop(brackets);
+      convert_to_RPN_operator(output, curr, stack, idx);
+      output[(*idx)++] = next_token;
+    } else if (curr->kind == TOKEN_NUMBER ||
+               curr->kind == TOKEN_VARIABLE_NAME ||
+               curr->kind == TOKEN_FUNCTION_NAME) {
+      output[(*idx)++] = next_token;
+    } else {
+      convert_to_RPN_operator(output, curr, stack, idx);
+    }
+    (*i)++;
+  } while (curr->kind != TOKEN_CLOSE_BRACKET ||
+           stack_get_tail(brackets) != NULL);
+  (*i)--;
+  op_stack_free(stack);
 }
 
 void convert_to_RPN_operator(token **output, token *curr, op_stack *stack,
@@ -55,8 +89,10 @@ void convert_to_RPN_operator(token **output, token *curr, op_stack *stack,
     int precedence = curr->operator.precedence;
     token *tmp_tail = stack_get_tail(stack);
     if (tmp_tail && tmp_tail->kind != TOKEN_OPEN_BRACKET && stack->size > 0) {
-      if ((tmp_tail->kind == TOKEN_UN_MINUS || precedence <= tmp_tail->operator.precedence) &&
-          (tmp_tail->kind != TOKEN_BIN_MINUS || tmp_tail->kind != TOKEN_BIN_MINUS) &&
+      if ((tmp_tail->kind == TOKEN_UN_MINUS ||
+           precedence <= tmp_tail->operator.precedence) &&
+          (tmp_tail->kind != TOKEN_BIN_MINUS ||
+           tmp_tail->kind != TOKEN_BIN_MINUS) &&
           curr->kind != TOKEN_UN_MINUS) {
         op_node *tail = op_stack_pop(stack); // pop stack
         output[*idx] =
@@ -70,22 +106,34 @@ void convert_to_RPN_operator(token **output, token *curr, op_stack *stack,
   }
 }
 
-double evaluate_RPN(token **tokens, int tokens_size, double x, int *flag) {
+double evaluate_RPN(token **tokens, int tokens_size, int *i, double x,
+                    int *flag, int single_func, int base_func) {
   op_stack *stack = new_op_stack();
-  for (int i = 0; i < tokens_size && *flag; i++) {
-    token *current = tokens[i];
-    if (current->kind == TOKEN_NUMBER) {
-      op_stack_push(stack, current);
-    } else if (current->kind == TOKEN_VARIABLE_NAME) {
-      current->number = x;
-      op_stack_push(stack, current);
-    } else if (current->kind == TOKEN_FUNCTION_NAME) {
-      evaluate_RPN_function(current, x);
-      op_stack_push(stack, current);
+  for (; *i < tokens_size && *flag; (*i)++) {
+    token *curr = tokens[*i];
+    if (curr->kind == TOKEN_NUMBER) {
+      op_stack_push(stack, curr);
+    } else if (curr->kind == TOKEN_VARIABLE_NAME) {
+      curr->number = x;
+      op_stack_push(stack, curr);
+    } else if (curr->kind == TOKEN_FUNCTION_NAME) {
+      curr->number = evaluate_RPN_complex_function(tokens, tokens_size, i, x,
+                                                   flag, base_func);
+      op_stack_push(stack, curr);
+      if (single_func)
+        break;
+    } else if (curr->kind == TOKEN_CLOSE_BRACKET) {  // for function
+      if (!base_func)
+        *flag = 0;
+      (*i) -= 2;
     } else {
-      evaluate_RPN_operator(current, stack, flag);
+      evaluate_RPN_operator(curr, stack, flag);
     }
   }
+  return get_evaluated_RPN(stack);
+}
+
+double get_evaluated_RPN(op_stack *stack) {
   op_node *tail = op_stack_pop(stack);
   double result;
   if (tail == NULL)
@@ -97,33 +145,77 @@ double evaluate_RPN(token **tokens, int tokens_size, double x, int *flag) {
   return result;
 }
 
-void evaluate_RPN_function(token *current, double x) {
-  switch (current->func_id) {
+double evaluate_RPN_complex_function(token **tokens, int tokens_size, int *i,
+                                     double x, int *flag, int base_func) {
+  token *base_function = tokens[(*i)++];
+  token *curr = NULL;
+  int _flag;
+  op_stack *stack = new_op_stack();
+  op_stack *brackets = new_op_stack();
+  do {
+    _flag = 1;
+    curr = tokens[*i];
+    if (curr->kind == TOKEN_OPEN_BRACKET) {
+      op_stack_push(brackets, curr);
+    } else if (curr->kind == TOKEN_CLOSE_BRACKET) {
+      op_stack_pop(brackets);
+    } else if (curr->kind == TOKEN_NUMBER) {
+      op_stack_push(stack, curr);
+    } else if (curr->kind == TOKEN_FUNCTION_NAME ||
+               curr->kind == TOKEN_VARIABLE_NAME) {
+      double func_expr = evaluate_RPN(tokens, tokens_size, i, x, &_flag, 1, 0);
+      if (curr->kind == TOKEN_FUNCTION_NAME) {
+        if (base_func != 1)
+          evaluate_RPN_function(curr, func_expr);
+        (*i)--;
+      } else {
+        curr->number = func_expr;
+      }
+      op_stack_push(stack, curr);
+    } else {
+      evaluate_RPN_operator(curr, stack, flag);
+    }
+    (*i)++;
+  } while (stack_get_tail(brackets) != NULL && *i < tokens_size);
+    
+  if (base_func)
+    (*i)--;
+
+  double entire_func_expr = get_evaluated_RPN(stack);
+  evaluate_RPN_function(base_function, entire_func_expr);
+  return base_function->number;
+}
+
+void evaluate_RPN_function(token *curr, double x) {
+  switch (curr->func_id) {
   case 1:
-    current->number = sin(x);
+    curr->number = sin(x);
     break;
   case 2:
-    current->number = cos(x);
+    curr->number = cos(x);
     break;
   case 3:
-    current->number = tan(x);
+    curr->number = tan(x);
     break;
   case 4:
-    current->number = cos(x) / sin(x);
+    curr->number = cos(x) / sin(x);
     break;
   case 5:
-    current->number = log(x);
+    curr->number = log(x);
     break;
   case 6:
-    current->number = sqrt(x);
+    curr->number = sqrt(x);
+    break;
+  default:
+    fprintf(stderr, "Unknown function given in [evaluate_RPN_function]\n");
     break;
   }
 }
 
-void evaluate_RPN_operator(token *current, op_stack *stack, int *flag) {
+void evaluate_RPN_operator(token *curr, op_stack *stack, int *flag) {
   double result = 0;
   op_node *operand2_node = NULL, *operand1_node = NULL;
-  if (current->kind == TOKEN_UN_MINUS) {
+  if (curr->kind == TOKEN_UN_MINUS) {
     operand2_node = op_stack_pop(stack);
   } else {
     operand2_node = op_stack_pop(stack);
@@ -131,11 +223,11 @@ void evaluate_RPN_operator(token *current, op_stack *stack, int *flag) {
   }
   // operand2_node is always non-NULL
   token *operand2 = operand2_node->operator;
-  token *operand1 = (operand1_node) ? operand1_node->operator : NULL;
+  token *operand1 = (operand1_node) ? operand1_node->operator: NULL;
 
   free(operand2_node);
   free(operand1_node);
-  switch (current->kind) {
+  switch (curr->kind) {
   case TOKEN_BIN_PLUS:
     result = operand1->number + operand2->number;
     break;
@@ -147,7 +239,6 @@ void evaluate_RPN_operator(token *current, op_stack *stack, int *flag) {
     break;
   case TOKEN_RSLASH: {
     if (fabs((double)operand2->number) < EPS) {
-      fprintf(stderr, "Division by zero, exited\n");
       *flag = 0;
     } else {
       result = operand1->number / operand2->number;
@@ -161,7 +252,7 @@ void evaluate_RPN_operator(token *current, op_stack *stack, int *flag) {
     break;
   }
   if (*flag) {
-    current->number = result;
-    op_stack_push(stack, current);
+    curr->number = result;
+    op_stack_push(stack, curr);
   }
 }

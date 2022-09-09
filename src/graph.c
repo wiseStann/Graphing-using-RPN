@@ -6,16 +6,21 @@
 
 void generate_graph(point *points, token **RPN_tokens, int tokens_size,
                     int *flag) {
-  int idx = 0;
+  int idx = 0, start_idx = 0;
   *flag = 1;
-  for (double x = 0; x < 4 * M_PI && *flag; x += (double)(4 * M_PI / 80)) {
-    double function = evaluate_RPN(RPN_tokens, tokens_size, x, flag);
+  for (double x = 0; x < 4 * M_PI; x += (double)(4 * M_PI / 80)) {
+    double function =
+        evaluate_RPN(RPN_tokens, tokens_size, &start_idx, x, flag, 0, 1);
     if (*flag) {
       double sum_coeff = function == 0 ? function : (function > 0 ? -1 : 1);
       point next_point = {x, function * 13 + sum_coeff};
-      points[idx] = next_point;
-      idx++;
+      points[idx++] = next_point;
+    } else {
+      point next_point = {-1, FIELD_HEIGHT};
+      points[idx++] = next_point;
     }
+    start_idx = 0;
+    *flag = 1;
   }
 }
 

@@ -13,16 +13,16 @@ void start_plotting() {
       flag = 0;
     } else {
       token **tokens = tokenize_input(input, expr_size, &tokens_size);
-      ;
       if (parse_input(tokens, tokens_size)) {
         int RPN_tokens_size = 0;
-        token **RPN_tokens = convert_to_RPN((const token **)tokens, tokens_size,
-                                            &RPN_tokens_size);
-        point points[FIELD_WIDTH];
-        generate_graph(points, RPN_tokens, RPN_tokens_size, &flag);
-        if (flag) {
-          show_graph(points);
-        }
+        token **RPN_tokens =
+            convert_to_RPN(tokens, tokens_size, &RPN_tokens_size);
+
+        // point points[FIELD_WIDTH];
+        // generate_graph(points, RPN_tokens, RPN_tokens_size, &flag);
+        // if (flag) {
+        //   show_graph(points);
+        // }
 
         for (int i = 0; i < RPN_tokens_size; i++)
           free(RPN_tokens[i]);

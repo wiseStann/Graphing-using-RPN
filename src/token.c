@@ -8,7 +8,7 @@ char *functions[FUNCTIONS_SIZE] = {
 };
 
 int get_operator_kind(char operator) {
-  int kind = 0;
+  int kind = -1;
   switch (operator) {
   case '-':
     kind = TOKEN_BIN_MINUS;
